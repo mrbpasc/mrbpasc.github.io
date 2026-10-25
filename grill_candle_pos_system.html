@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sugba & Sindi - Mobile POS System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX) for Excel Export/Import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        grill: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#ea580c',
+                            600: '#c2410c',
+                            700: '#9a3412',
+                        },
+                        candle: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#059669',
+                            600: '#047857',
+                            700: '#065f46',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Touch & Layout Hardening for Android */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        /* Dynamic Viewport Fix for Mobile Browsers */
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+        }
+        
+        /* Mobile Scroll Lock & Custom Scrollbars */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Enforce Touch Target Sizing (Min 52px for fast tapping) */
+        .btn-touch {
+            min-height: 52px;
+        }
+
+        /* Safe Bottom Padding for Android Gesture Navigation Bars */
+        .pb-android-safe {
+            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        }
+    </style>
+</head>
+<body class="text-slate-900 h-full flex flex-col bg-slate-900">
+
+    <!-- TOP APP HEADER -->
+    <header class="bg-slate-950 text-white flex-none border-b border-slate-800 z-30">
+        <div class="px-3 py-2 flex justify-between items-center max-w-7xl mx-auto">
+            <div class="flex items-center space-x-2">
+                <div class="w-9 h-9 bg-gradient-to-tr from-orange-600 to-amber-500 rounded-xl flex items-center justify-center text-white shadow font-bold text-base">
+                    <i class="fa-solid fa-fire"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-black tracking-tight leading-none text-white">SUGBA & SINDI</h1>
+                    <p class="text-[10px] font-bold text-orange-400 mt-0.5">Mobile Android POS</p>
+                </div>
+            </div>
+            
+            <!-- Quick Excel Backup Actions -->
+            <div class="flex items-center space-x-1.5">
+                <button onclick="exportToExcel()" class="h-9 bg-emerald-600 active:bg-emerald-700 text-white px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Export</span>
+                </button>
+                <label class="h-9 bg-slate-800 active:bg-slate-700 text-slate-200 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-slate-700">
+                    <i class="fa-solid fa-file-import"></i>
+                    <input type="file" id="importExcelInput" accept=".xlsx, .xls" class="hidden" onchange="importData(event)">
+                </label>
+            </div>
+        </div>
+        
+        <!-- HIGH-CONTRAST MOBILE TABS BAR -->
+        <nav class="flex bg-slate-900 border-t border-slate-800 overflow-x-auto no-scrollbar px-1">
+            <button onclick="switchTab('grill-pos')" id="tab-grill-pos" class="nav-tab flex-1 min-w-[85px] py-2.5 px-1 text-center text-[11px] font-bold flex flex-col items-center justify-center gap-1 border-b-4 border-orange-500 text-orange-400 bg-slate-800/80">
+                <i class="fa-solid fa-drumstick-bite text-sm"></i>
+                <span>Grill POS</span>
+            </button>
+            <button onclick="switchTab('grill-inv')" id="tab-grill-inv" class="nav-tab flex-1 min-w-[85px] py-2.5 px-1 text-center text-[11px] font-bold flex flex-col items-center justify-center gap-1 border-b-4 border-transparent text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-boxes-stacked text-sm"></i>
+                <span>Grill Stock</span>
+            </button>
+            <button onclick="switchTab('candle-pos')" id="tab-candle-pos" class="nav-tab flex-1 min-w-[85px] py-2.5 px-1 text-center text-[11px] font-bold flex flex-col items-center justify-center gap-1 border-b-4 border-transparent text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-fire-flame-curved text-sm text-emerald-400"></i>
+                <span>Candle POS</span>
+            </button>
+            <button onclick="switchTab('candle-inv')" id="tab-candle-inv" class="nav-tab flex-1 min-w-[85px] py-2.5 px-1 text-center text-[11px] font-bold flex flex-col items-center justify-center gap-1 border-b-4 border-transparent text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-warehouse text-sm"></i>
+                <span>Candle Stock</span>
+            </button>
+            <button onclick="switchTab('logs')" id="tab-logs" class="nav-tab flex-1 min-w-[85px] py-2.5 px-1 text-center text-[11px] font-bold flex flex-col items-center justify-center gap-1 border-b-4 border-transparent text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-receipt text-sm"></i>
+                <span>Sales Logs</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- MAIN BODY VIEWPORT -->
+    <main class="flex-1 overflow-hidden relative bg-slate-100">
+
+        <!-- ================= 1. GRILL POS MODULE ================= -->
+        <section id="sec-grill-pos" class="tab-content h-full flex flex-col lg:flex-row overflow-hidden relative">
+            <!-- Product Grid -->
+            <div class="flex-1 overflow-y-auto p-3 sm:p-4 pb-36 lg:pb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-fire text-orange-600"></i> Grill Items
+                    </span>
+                    <span class="text-xs bg-orange-100 text-orange-900 font-extrabold px-2.5 py-1 rounded-full border border-orange-200" id="grill-item-count">8 Items</span>
+                </div>
+                
+                <div id="grill-products-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                    <!-- Dynamic Product Cards Injected Here -->
+                </div>
+            </div>
+
+            <!-- DESKTOP CART SIDEBAR (Hidden on Mobile) -->
+            <div class="hidden lg:flex w-96 bg-slate-900 text-white border-l border-slate-800 flex-col shadow-2xl z-20">
+                <div class="p-3 bg-slate-950 flex justify-between items-center border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-cart-shopping text-orange-400"></i>
+                        <h3 class="font-bold text-sm text-white">Grill Order Summary</h3>
+                    </div>
+                    <button onclick="clearCart('grill')" class="text-xs text-rose-400 font-semibold hover:underline">Clear</button>
+                </div>
+                <div id="grill-cart-body-desktop" class="flex-1 overflow-y-auto p-3 space-y-2 divide-y divide-slate-800"></div>
+                <div class="p-4 bg-slate-950 border-t border-slate-800 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-400">Total Due:</span>
+                        <span id="grill-cart-total-desktop" class="text-2xl font-black text-orange-400">₱0.00</span>
+                    </div>
+                    <button onclick="openPaymentModal('grill')" id="grill-checkout-btn-desktop" disabled class="btn-touch w-full py-3.5 bg-orange-600 active:bg-orange-700 disabled:bg-slate-800 disabled:text-slate-600 text-white font-extrabold rounded-xl shadow-lg transition uppercase tracking-wider flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-cash-register"></i> Checkout Order
+                    </button>
+                </div>
+            </div>
+
+            <!-- ALWAYS VISIBLE FLOATING ACTION BAR FOR ANDROID / MOBILE -->
+            <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-950 border-t-2 border-orange-500 p-2.5 pb-android-safe shadow-2xl z-40 flex items-center justify-between gap-2">
+                <div onclick="openCartDrawer('grill')" class="flex-1 bg-slate-900 rounded-xl p-2 flex items-center justify-between cursor-pointer border border-slate-800 active:bg-slate-800">
+                    <div class="flex items-center gap-2">
+                        <div class="relative">
+                            <i class="fa-solid fa-cart-shopping text-orange-400 text-lg"></i>
+                            <span id="grill-cart-badge-mobile" class="absolute -top-2 -right-2 bg-orange-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full">0</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase leading-none">View Cart</span>
+                            <span id="grill-cart-total-mobile" class="text-lg font-black text-amber-400 leading-tight">₱0.00</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-up text-slate-400 text-xs px-1"></i>
+                </div>
+
+                <!-- DEDICATED PROMINENT CHECKOUT BUTTON -->
+                <button onclick="openPaymentModal('grill')" id="grill-checkout-btn-mobile" disabled class="btn-touch px-5 bg-orange-600 active:bg-orange-700 disabled:bg-slate-800 disabled:text-slate-600 text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm uppercase tracking-wider">
+                    <i class="fa-solid fa-cash-register text-base"></i>
+                    <span>CHECKOUT</span>
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ================= 2. GRILL INVENTORY MODULE ================= -->
+        <section id="sec-grill-inv" class="tab-content hidden h-full overflow-y-auto p-3 sm:p-5 bg-slate-100">
+            <div class="max-w-4xl mx-auto space-y-4 pb-24">
+                <!-- Header -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-stacked text-orange-600"></i> Grill Daily Inventory & Prices
+                        </h2>
+                        <p class="text-xs font-semibold text-slate-500">Update available stock for the day or edit item prices.</p>
+                    </div>
+                    <button onclick="openAddProductModal('grill')" class="btn-touch w-full sm:w-auto bg-orange-600 active:bg-orange-700 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-plus text-sm"></i> Add New Grill Product
+                    </button>
+                </div>
+
+                <!-- Inventory Cards List -->
+                <div id="grill-inventory-list" class="space-y-2.5">
+                    <!-- Dynamic Grill Stock Row Cards -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ================= 3. CANDLE POS MODULE ================= -->
+        <section id="sec-candle-pos" class="tab-content hidden h-full flex flex-col lg:flex-row overflow-hidden relative">
+            <!-- Product Grid -->
+            <div class="flex-1 overflow-y-auto p-3 sm:p-4 pb-36 lg:pb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-fire-flame-curved text-emerald-600"></i> Candle Counter Menu
+                    </span>
+                    <span class="text-xs bg-emerald-100 text-emerald-900 font-extrabold px-2.5 py-1 rounded-full border border-emerald-200" id="candle-item-count">0 Items</span>
+                </div>
+                
+                <div id="candle-products-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                    <!-- Dynamic Candle Product Cards -->
+                </div>
+            </div>
+
+            <!-- DESKTOP CANDLE CART SIDEBAR -->
+            <div class="hidden lg:flex w-96 bg-slate-900 text-white border-l border-slate-800 flex-col shadow-2xl z-20">
+                <div class="p-3 bg-slate-950 flex justify-between items-center border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-cart-shopping text-emerald-400"></i>
+                        <h3 class="font-bold text-sm text-white">Candle Order Summary</h3>
+                    </div>
+                    <button onclick="clearCart('candle')" class="text-xs text-rose-400 font-semibold hover:underline">Clear</button>
+                </div>
+                <div id="candle-cart-body-desktop" class="flex-1 overflow-y-auto p-3 space-y-2 divide-y divide-slate-800"></div>
+                <div class="p-4 bg-slate-950 border-t border-slate-800 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-400">Total Due:</span>
+                        <span id="candle-cart-total-desktop" class="text-2xl font-black text-emerald-400">₱0.00</span>
+                    </div>
+                    <button onclick="openPaymentModal('candle')" id="candle-checkout-btn-desktop" disabled class="btn-touch w-full py-3.5 bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-800 disabled:text-slate-600 text-white font-extrabold rounded-xl shadow-lg transition uppercase tracking-wider flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-cash-register"></i> Checkout Order
+                    </button>
+                </div>
+            </div>
+
+            <!-- ALWAYS VISIBLE FLOATING ACTION BAR FOR CANDLE (MOBILE) -->
+            <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-950 border-t-2 border-emerald-500 p-2.5 pb-android-safe shadow-2xl z-40 flex items-center justify-between gap-2">
+                <div onclick="openCartDrawer('candle')" class="flex-1 bg-slate-900 rounded-xl p-2 flex items-center justify-between cursor-pointer border border-slate-800 active:bg-slate-800">
+                    <div class="flex items-center gap-2">
+                        <div class="relative">
+                            <i class="fa-solid fa-cart-shopping text-emerald-400 text-lg"></i>
+                            <span id="candle-cart-badge-mobile" class="absolute -top-2 -right-2 bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full">0</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase leading-none">View Cart</span>
+                            <span id="candle-cart-total-mobile" class="text-lg font-black text-emerald-400 leading-tight">₱0.00</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-up text-slate-400 text-xs px-1"></i>
+                </div>
+
+                <!-- DEDICATED PROMINENT CHECKOUT BUTTON -->
+                <button onclick="openPaymentModal('candle')" id="candle-checkout-btn-mobile" disabled class="btn-touch px-5 bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-800 disabled:text-slate-600 text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm uppercase tracking-wider">
+                    <i class="fa-solid fa-cash-register text-base"></i>
+                    <span>CHECKOUT</span>
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ================= 4. CANDLE INVENTORY MODULE ================= -->
+        <section id="sec-candle-inv" class="tab-content hidden h-full overflow-y-auto p-3 sm:p-5 bg-slate-100">
+            <div class="max-w-4xl mx-auto space-y-4 pb-24">
+                <!-- Header -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-warehouse text-emerald-600"></i> Candle Stock Management
+                        </h2>
+                        <p class="text-xs font-semibold text-slate-500">Manage daily candle inventory levels and selling prices.</p>
+                    </div>
+                    <button onclick="openAddProductModal('candle')" class="btn-touch w-full sm:w-auto bg-emerald-600 active:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-plus text-sm"></i> Add New Candle Item
+                    </button>
+                </div>
+
+                <!-- Candle Stock Row Cards -->
+                <div id="candle-inventory-list" class="space-y-2.5">
+                    <!-- Dynamic Candle Stock Row Cards -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ================= 5. TRANSACTION LOGS & SALES ================= -->
+        <section id="sec-logs" class="tab-content hidden h-full overflow-y-auto p-3 sm:p-5 bg-slate-100">
+            <div class="max-w-5xl mx-auto space-y-4 pb-24">
+                
+                <!-- Analytics Summary Cards -->
+                <div class="grid grid-cols-3 gap-2 sm:gap-4">
+                    <div class="bg-slate-900 text-white p-3 rounded-2xl shadow-sm border border-slate-800 text-center sm:text-left">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Total Sales</p>
+                        <h3 class="text-base sm:text-2xl font-black text-white mt-0.5" id="stat-total-sales">₱0.00</h3>
+                    </div>
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-center sm:text-left">
+                        <p class="text-[10px] font-bold text-orange-600 uppercase">Grill Total</p>
+                        <h3 class="text-base sm:text-2xl font-black text-slate-900 mt-0.5" id="stat-grill-sales">₱0.00</h3>
+                    </div>
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 text-center sm:text-left">
+                        <p class="text-[10px] font-bold text-emerald-600 uppercase">Candle Total</p>
+                        <h3 class="text-base sm:text-2xl font-black text-slate-900 mt-0.5" id="stat-candle-sales">₱0.00</h3>
+                    </div>
+                </div>
+
+                <!-- Logs Filter Bar -->
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-2">
+                    <div class="flex gap-1.5 overflow-x-auto no-scrollbar">
+                        <button onclick="filterLogs('all')" id="btn-filter-all" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white">All Logs</button>
+                        <button onclick="filterLogs('GRILL')" id="btn-filter-GRILL" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700">Grill Only</button>
+                        <button onclick="filterLogs('CANDLE')" id="btn-filter-CANDLE" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700">Candles Only</button>
+                    </div>
+                    
+                    <button onclick="clearSalesLogs()" class="text-xs text-rose-600 font-extrabold hover:underline whitespace-nowrap px-2">
+                        <i class="fa-solid fa-trash"></i> Reset
+                    </button>
+                </div>
+
+                <!-- Transaction List -->
+                <div id="sales-logs-list" class="space-y-2.5">
+                    <!-- Dynamic Transaction Cards Injected Here -->
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+
+    <!-- ================= MODALS & POPUPS ================= -->
+
+    <!-- MOBILE CART REVIEW DRAWER MODAL -->
+    <div id="cart-drawer-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end justify-center">
+        <div class="bg-slate-900 text-white rounded-t-3xl shadow-2xl w-full max-h-[70vh] flex flex-col border-t border-slate-800 pb-android-safe">
+            <div class="p-3.5 bg-slate-950 flex justify-between items-center rounded-t-3xl border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-cart-shopping text-amber-400"></i>
+                    <h3 id="drawer-cart-title" class="font-bold text-sm text-white">Selected Order Items</h3>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="clearCurrentCartFromDrawer()" class="text-xs text-rose-400 font-bold hover:underline">Clear</button>
+                    <button onclick="closeModal('cart-drawer-modal')" class="text-slate-400 active:text-white px-2 py-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+            </div>
+            
+            <div id="drawer-cart-body" class="flex-1 overflow-y-auto p-4 space-y-2 divide-y divide-slate-800">
+                <!-- Dynamic Items -->
+            </div>
+
+            <div class="p-3 bg-slate-950 border-t border-slate-800 flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-400">Total:</span>
+                <span id="drawer-cart-total" class="text-xl font-black text-amber-400">₱0.00</span>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 1. HIGH-CONTRAST CHECKOUT MODAL -->
+    <div id="payment-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col border border-slate-200 pb-android-safe sm:pb-0">
+            <div id="payment-modal-header" class="p-4 bg-slate-950 text-white flex justify-between items-center border-b border-slate-800">
+                <h3 class="font-extrabold text-base flex items-center gap-2 text-white">
+                    <i class="fa-solid fa-cash-register text-emerald-400"></i> Finalize Payment
+                </h3>
+                <button onclick="closeModal('payment-modal')" class="text-slate-400 active:text-white px-2 py-1"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <div class="p-5 space-y-4 bg-white">
+                <div class="text-center py-3 bg-slate-900 text-white rounded-2xl">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Amount Due</p>
+                    <h2 id="modal-due-amount" class="text-3xl font-black text-amber-400 mt-0.5">₱0.00</h2>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cash Tendered (₱)</label>
+                    <input type="number" id="cash-received-input" oninput="calculateChange()" placeholder="0.00" min="0" step="any" inputmode="decimal" class="w-full text-2xl font-black px-4 py-3 border-2 border-slate-300 focus:border-slate-900 rounded-2xl outline-none text-slate-900 bg-slate-50">
+                </div>
+
+                <!-- Quick Cash Presets -->
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="setQuickCash(20)" class="h-11 bg-slate-100 active:bg-slate-200 text-xs font-black rounded-xl text-slate-800 border border-slate-200">₱20</button>
+                    <button onclick="setQuickCash(50)" class="h-11 bg-slate-100 active:bg-slate-200 text-xs font-black rounded-xl text-slate-800 border border-slate-200">₱50</button>
+                    <button onclick="setQuickCash(100)" class="h-11 bg-slate-100 active:bg-slate-200 text-xs font-black rounded-xl text-slate-800 border border-slate-200">₱100</button>
+                    <button onclick="setQuickCash(500)" class="h-11 bg-slate-100 active:bg-slate-200 text-xs font-black rounded-xl text-slate-800 border border-slate-200">₱500</button>
+                </div>
+
+                <div class="flex justify-between items-center p-3.5 bg-emerald-50 border-2 border-emerald-200 rounded-2xl">
+                    <span class="text-xs font-extrabold text-emerald-900">Change Due:</span>
+                    <span id="modal-change-amount" class="text-xl font-black text-emerald-700">₱0.00</span>
+                </div>
+
+                <button onclick="processFinalCheckout()" id="confirm-pay-btn" disabled class="btn-touch w-full py-4 bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-extrabold rounded-2xl shadow-lg transition text-base uppercase tracking-wider flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-check-circle text-lg"></i> Complete Sale
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 2. ADD/EDIT PRODUCT MODAL -->
+    <div id="product-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            <div class="p-4 bg-slate-950 text-white flex justify-between items-center border-b border-slate-800">
+                <h3 id="product-modal-title" class="font-extrabold text-base text-white">Add New Product</h3>
+                <button onclick="closeModal('product-modal')" class="text-slate-400 active:text-white px-2 py-1"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <form id="product-form" onsubmit="handleProductSubmit(event)" class="p-5 space-y-3.5 bg-white">
+                <input type="hidden" id="prod-id">
+                <input type="hidden" id="prod-module-type">
+
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Product Name</label>
+                    <input type="text" id="prod-name" required placeholder="e.g. Isaw or White Candle" class="w-full text-sm font-semibold px-3.5 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-slate-900 bg-slate-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Price (₱)</label>
+                        <input type="number" id="prod-price" required min="0" step="0.5" inputmode="decimal" placeholder="15.00" class="w-full text-sm font-semibold px-3.5 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-slate-900 bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Daily Stock</label>
+                        <input type="number" id="prod-stock" required min="0" inputmode="numeric" placeholder="50" class="w-full text-sm font-semibold px-3.5 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-slate-900 bg-slate-50">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Category</label>
+                    <input type="text" id="prod-category" placeholder="e.g. Pork, Chicken, Standard" class="w-full text-sm font-semibold px-3.5 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-slate-900 bg-slate-50">
+                </div>
+
+                <div class="pt-3 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('product-modal')" class="px-4 py-2.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl active:bg-slate-200">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-slate-900 text-white text-xs font-extrabold rounded-xl active:bg-slate-800 shadow">Save Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- 3. DIGITAL RECEIPT MODAL -->
+    <div id="receipt-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-xs w-full overflow-hidden flex flex-col border border-slate-200">
+            <div class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+                <span class="text-xs font-extrabold text-slate-700 uppercase">Sales Receipt</span>
+                <button onclick="closeModal('receipt-modal')" class="text-slate-400 active:text-slate-700 px-2 py-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <!-- Receipt Output -->
+            <div id="receipt-paper" class="p-5 font-mono text-xs bg-white text-slate-900 space-y-3">
+                <div class="text-center">
+                    <h2 class="font-black text-base tracking-tight uppercase" id="rcpt-store-name">SUGBA & SINDI</h2>
+                    <p class="text-[10px] font-bold text-slate-500" id="rcpt-type-tag">GRILL COUNTER</p>
+                    <p class="text-[10px] text-slate-400 mt-1" id="rcpt-date-time">2026-10-25 00:00</p>
+                    <p class="text-[10px] text-slate-400">Ref: <span id="rcpt-ref-id" class="font-bold">#000000</span></p>
+                </div>
+
+                <div class="border-b border-dashed border-slate-300"></div>
+
+                <div id="rcpt-items-list" class="space-y-1.5">
+                    <!-- Items -->
+                </div>
+
+                <div class="border-b border-dashed border-slate-300"></div>
+
+                <div class="space-y-1">
+                    <div class="flex justify-between font-bold text-sm">
+                        <span>TOTAL:</span>
+                        <span id="rcpt-total" class="font-black">₱0.00</span>
+                    </div>
+                    <div class="flex justify-between text-slate-600">
+                        <span>CASH:</span>
+                        <span id="rcpt-cash">₱0.00</span>
+                    </div>
+                    <div class="flex justify-between text-slate-600">
+                        <span>CHANGE:</span>
+                        <span id="rcpt-change">₱0.00</span>
+                    </div>
+                </div>
+
+                <div class="border-b border-dashed border-slate-300"></div>
+
+                <div class="text-center text-[10px] text-slate-500 pt-1 font-sans">
+                    <p class="font-bold">Salamat sa pagtangkilik!</p>
+                    <p>Have a blessed day!</p>
+                </div>
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex gap-2">
+                <button onclick="window.print()" class="flex-1 py-2.5 bg-slate-900 active:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-print"></i> Print
+                </button>
+                <button onclick="closeModal('receipt-modal')" class="flex-1 py-2.5 bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // ================= INITIAL DATA DEFAULTS =================
+        const DEFAULT_GRILL_PRODUCTS = [
+            { id: 'g1', name: 'Barbeque', price: 15, stock: 50, category: 'Pork' },
+            { id: 'g2', name: 'Ulo', price: 15, stock: 40, category: 'Pork' },
+            { id: 'g3', name: 'Isaw', price: 10, stock: 60, category: 'Chicken' },
+            { id: 'g4', name: 'Dugo', price: 8, stock: 45, category: 'Pork' },
+            { id: 'g5', name: 'Paa', price: 15, stock: 30, category: 'Chicken' },
+            { id: 'g6', name: 'Hotdog', price: 20, stock: 40, category: 'Others' },
+            { id: 'g7', name: 'Palamig Small', price: 5, stock: 100, category: 'Drinks' },
+            { id: 'g8', name: 'Palamig Large', price: 10, stock: 80, category: 'Drinks' }
+        ];
+
+        const DEFAULT_CANDLE_PRODUCTS = [
+            { id: 'c1', name: 'White Candle (Small)', price: 5, stock: 100, category: 'Standard' },
+            { id: 'c2', name: 'White Candle (Medium)', price: 10, stock: 80, category: 'Standard' },
+            { id: 'c3', name: 'Votive Candle', price: 15, stock: 50, category: 'Special' },
+            { id: 'c4', name: 'Glass Candle', price: 35, stock: 25, category: 'Premium' }
+        ];
+
+        // System State
+        let grillProducts = [];
+        let candleProducts = [];
+        let grillCart = [];
+        let candleCart = [];
+        let salesLogs = [];
+
+        let currentCheckoutModule = 'grill';
+        let drawerModule = 'grill';
+        let activeLogFilter = 'all';
+
+        // ================= APP INIT =================
+        window.onload = function() {
+            loadDatabase();
+            renderAllViews();
+        };
+
+        function loadDatabase() {
+            const savedGrill = localStorage.getItem('sugba_grill_prods_v2');
+            const savedCandle = localStorage.getItem('sugba_candle_prods_v2');
+            const savedLogs = localStorage.getItem('sugba_sales_logs_v2');
+
+            grillProducts = savedGrill ? JSON.parse(savedGrill) : [...DEFAULT_GRILL_PRODUCTS];
+            candleProducts = savedCandle ? JSON.parse(savedCandle) : [...DEFAULT_CANDLE_PRODUCTS];
+            salesLogs = savedLogs ? JSON.parse(savedLogs) : [];
+
+            saveDatabase();
+        }
+
+        function saveDatabase() {
+            localStorage.setItem('sugba_grill_prods_v2', JSON.stringify(grillProducts));
+            localStorage.setItem('sugba_candle_prods_v2', JSON.stringify(candleProducts));
+            localStorage.setItem('sugba_sales_logs_v2', JSON.stringify(salesLogs));
+        }
+
+        function renderAllViews() {
+            renderGrillPOS();
+            renderGrillInventory();
+            renderCandlePOS();
+            renderCandleInventory();
+            renderSalesAnalytics();
+        }
+
+
+        // ================= TAB NAVIGATION =================
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('border-orange-500', 'border-emerald-500', 'text-orange-400', 'text-emerald-400', 'bg-slate-800/80');
+                el.classList.add('border-transparent', 'text-slate-400');
+            });
+
+            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`tab-${tabId}`);
+
+            if (tabId.startsWith('grill')) {
+                activeTab.classList.add('border-orange-500', 'text-orange-400', 'bg-slate-800/80');
+            } else if (tabId.startsWith('candle')) {
+                activeTab.classList.add('border-emerald-500', 'text-emerald-400', 'bg-slate-800/80');
+            } else {
+                activeTab.classList.add('border-slate-100', 'text-white', 'bg-slate-800/80');
+            }
+        }
+
+
+        // ================= GRILL POS =================
+        function renderGrillPOS() {
+            const grid = document.getElementById('grill-products-grid');
+            grid.innerHTML = '';
+            document.getElementById('grill-item-count').textContent = `${grillProducts.length} Items`;
+
+            grillProducts.forEach(prod => {
+                const outOfStock = prod.stock <= 0;
+                const card = document.createElement('div');
+                card.className = `btn-touch bg-white p-3 rounded-2xl border-2 ${outOfStock ? 'border-slate-200 opacity-50' : 'border-slate-200 active:border-orange-500'} shadow-sm flex flex-col justify-between cursor-pointer relative overflow-hidden transition`;
+                
+                if (!outOfStock) {
+                    card.onclick = () => addToCart('grill', prod.id);
+                }
+
+                card.innerHTML = `
+                    <div>
+                        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">${prod.category || 'Grill'}</span>
+                        <h4 class="font-extrabold text-slate-900 text-sm leading-tight mt-0.5">${prod.name}</h4>
+                        <p class="text-base font-black text-orange-600 mt-1">₱${parseFloat(prod.price).toFixed(2)}</p>
+                    </div>
+                    <div class="mt-2.5 flex justify-between items-center text-xs pt-2 border-t border-slate-100">
+                        <span class="text-slate-500 font-semibold">Stock:</span>
+                        <span class="font-black ${outOfStock ? 'text-rose-600' : 'text-slate-800'}">${outOfStock ? 'SOLD OUT' : prod.stock}</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            renderCart('grill');
+        }
+
+
+        // ================= CANDLE POS =================
+        function renderCandlePOS() {
+            const grid = document.getElementById('candle-products-grid');
+            grid.innerHTML = '';
+            document.getElementById('candle-item-count').textContent = `${candleProducts.length} Items`;
+
+            candleProducts.forEach(prod => {
+                const outOfStock = prod.stock <= 0;
+                const card = document.createElement('div');
+                card.className = `btn-touch bg-white p-3 rounded-2xl border-2 ${outOfStock ? 'border-slate-200 opacity-50' : 'border-slate-200 active:border-emerald-500'} shadow-sm flex flex-col justify-between cursor-pointer relative overflow-hidden transition`;
+                
+                if (!outOfStock) {
+                    card.onclick = () => addToCart('candle', prod.id);
+                }
+
+                card.innerHTML = `
+                    <div>
+                        <span class="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">${prod.category || 'Candle'}</span>
+                        <h4 class="font-extrabold text-slate-900 text-sm leading-tight mt-0.5">${prod.name}</h4>
+                        <p class="text-base font-black text-emerald-600 mt-1">₱${parseFloat(prod.price).toFixed(2)}</p>
+                    </div>
+                    <div class="mt-2.5 flex justify-between items-center text-xs pt-2 border-t border-slate-100">
+                        <span class="text-slate-500 font-semibold">Stock:</span>
+                        <span class="font-black ${outOfStock ? 'text-rose-600' : 'text-slate-800'}">${outOfStock ? 'SOLD OUT' : prod.stock}</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            renderCart('candle');
+        }
+
+
+        // ================= CART LOGIC =================
+        function addToCart(moduleType, productId) {
+            const products = moduleType === 'grill' ? grillProducts : candleProducts;
+            const cart = moduleType === 'grill' ? grillCart : candleCart;
+
+            const product = products.find(p => p.id === productId);
+            if (!product || product.stock <= 0) return;
+
+            const existingCartItem = cart.find(item => item.id === productId);
+
+            if (existingCartItem) {
+                if (existingCartItem.qty < product.stock) {
+                    existingCartItem.qty++;
+                } else {
+                    alert(`Stock limit reached! Only ${product.stock} available.`);
+                }
+            } else {
+                cart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: parseFloat(product.price),
+                    qty: 1
+                });
+            }
+
+            renderCart(moduleType);
+        }
+
+        function updateCartQty(moduleType, productId, delta) {
+            const cart = moduleType === 'grill' ? grillCart : candleCart;
+            const products = moduleType === 'grill' ? grillProducts : candleProducts;
+            
+            const cartItem = cart.find(item => item.id === productId);
+            const product = products.find(p => p.id === productId);
+
+            if (!cartItem) return;
+
+            cartItem.qty += delta;
+
+            if (cartItem.qty > product.stock) {
+                cartItem.qty = product.stock;
+                alert(`Stock limit reached for ${product.name}.`);
+            }
+
+            if (cartItem.qty <= 0) {
+                const idx = cart.findIndex(item => item.id === productId);
+                if (idx > -1) cart.splice(idx, 1);
+            }
+
+            renderCart(moduleType);
+            if (!document.getElementById('cart-drawer-modal').classList.contains('hidden')) {
+                renderCartDrawer();
+            }
+        }
+
+        function clearCart(moduleType) {
+            if (moduleType === 'grill') grillCart = [];
+            else candleCart = [];
+            renderCart(moduleType);
+        }
+
+        function openCartDrawer(moduleType) {
+            drawerModule = moduleType;
+            document.getElementById('drawer-cart-title').textContent = `${moduleType === 'grill' ? 'Grill' : 'Candle'} Cart Items`;
+            renderCartDrawer();
+            document.getElementById('cart-drawer-modal').classList.remove('hidden');
+        }
+
+        function clearCurrentCartFromDrawer() {
+            clearCart(drawerModule);
+            closeModal('cart-drawer-modal');
+        }
+
+        function renderCartDrawer() {
+            const cart = drawerModule === 'grill' ? grillCart : candleCart;
+            const container = document.getElementById('drawer-cart-body');
+            container.innerHTML = '';
+            let total = 0;
+
+            if (cart.length === 0) {
+                container.innerHTML = `<div class="py-6 text-center text-slate-400 text-xs font-semibold">No items in cart.</div>`;
+            } else {
+                cart.forEach(item => {
+                    const subtotal = item.price * item.qty;
+                    total += subtotal;
+
+                    const row = document.createElement('div');
+                    row.className = 'pt-2 flex items-center justify-between text-white';
+                    row.innerHTML = `
+                        <div class="flex-1 pr-2">
+                            <h5 class="font-bold text-xs text-slate-100">${item.name}</h5>
+                            <p class="text-[11px] text-slate-400">₱${item.price.toFixed(2)} × ${item.qty} = <span class="font-black text-amber-400">₱${subtotal.toFixed(2)}</span></p>
+                        </div>
+                        <div class="flex items-center space-x-1.5 bg-slate-800 rounded-xl p-1">
+                            <button onclick="updateCartQty('${drawerModule}', '${item.id}', -1)" class="w-8 h-8 rounded-lg bg-slate-700 active:bg-slate-600 text-white font-black text-sm flex items-center justify-center">-</button>
+                            <span class="w-6 text-center text-xs font-black text-white">${item.qty}</span>
+                            <button onclick="updateCartQty('${drawerModule}', '${item.id}', 1)" class="w-8 h-8 rounded-lg bg-slate-700 active:bg-slate-600 text-white font-black text-sm flex items-center justify-center">+</button>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            }
+
+            document.getElementById('drawer-cart-total').textContent = `₱${total.toFixed(2)}`;
+        }
+
+        function renderCart(moduleType) {
+            const isGrill = moduleType === 'grill';
+            const cart = isGrill ? grillCart : candleCart;
+            const desktopContainer = document.getElementById(isGrill ? 'grill-cart-body-desktop' : 'candle-cart-body-desktop');
+            
+            if (desktopContainer) desktopContainer.innerHTML = '';
+            let total = 0;
+            let totalItemCount = 0;
+
+            cart.forEach(item => {
+                const subtotal = item.price * item.qty;
+                total += subtotal;
+                totalItemCount += item.qty;
+
+                if (desktopContainer) {
+                    const row = document.createElement('div');
+                    row.className = 'pt-2 flex items-center justify-between text-white';
+                    row.innerHTML = `
+                        <div class="flex-1 pr-2">
+                            <h5 class="font-bold text-xs text-slate-100">${item.name}</h5>
+                            <p class="text-[11px] text-slate-400">₱${item.price.toFixed(2)} × ${item.qty} = <span class="font-black text-amber-400">₱${subtotal.toFixed(2)}</span></p>
+                        </div>
+                        <div class="flex items-center space-x-1.5 bg-slate-800 rounded-xl p-1">
+                            <button onclick="updateCartQty('${moduleType}', '${item.id}', -1)" class="w-7 h-7 rounded-lg bg-slate-700 active:bg-slate-600 text-white font-black text-xs flex items-center justify-center">-</button>
+                            <span class="w-5 text-center text-xs font-black text-white">${item.qty}</span>
+                            <button onclick="updateCartQty('${moduleType}', '${item.id}', 1)" class="w-7 h-7 rounded-lg bg-slate-700 active:bg-slate-600 text-white font-black text-xs flex items-center justify-center">+</button>
+                        </div>
+                    `;
+                    desktopContainer.appendChild(row);
+                }
+            });
+
+            // Update Mobile Bottom Floating Bar
+            document.getElementById(isGrill ? 'grill-cart-badge-mobile' : 'candle-cart-badge-mobile').textContent = totalItemCount;
+            document.getElementById(isGrill ? 'grill-cart-total-mobile' : 'candle-cart-total-mobile').textContent = `₱${total.toFixed(2)}`;
+            document.getElementById(isGrill ? 'grill-checkout-btn-mobile' : 'candle-checkout-btn-mobile').disabled = cart.length === 0;
+
+            // Update Desktop Sidebar
+            if (document.getElementById(isGrill ? 'grill-cart-total-desktop' : 'candle-cart-total-desktop')) {
+                document.getElementById(isGrill ? 'grill-cart-total-desktop' : 'candle-cart-total-desktop').textContent = `₱${total.toFixed(2)}`;
+                document.getElementById(isGrill ? 'grill-checkout-btn-desktop' : 'candle-checkout-btn-desktop').disabled = cart.length === 0;
+            }
+        }
+
+
+        // ================= INVENTORY CONTROL =================
+        function renderGrillInventory() {
+            const list = document.getElementById('grill-inventory-list');
+            list.innerHTML = '';
+
+            grillProducts.forEach(prod => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center';
+                card.innerHTML = `
+                    <div class="flex-1 pr-2">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">${prod.category || 'General'}</span>
+                        <h4 class="font-black text-slate-900 text-sm">${prod.name}</h4>
+                        <p class="text-sm font-black text-orange-600 mt-0.5">₱${parseFloat(prod.price).toFixed(2)}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-right">
+                            <span class="text-[10px] block font-bold text-slate-400">STOCK</span>
+                            <span class="text-base font-black ${prod.stock <= 5 ? 'text-rose-600' : 'text-slate-800'}">${prod.stock}</span>
+                        </div>
+                        <div class="flex flex-col gap-1 ml-2">
+                            <button onclick="adjustStockDirect('grill', '${prod.id}', 10)" class="px-2 py-1 bg-orange-100 active:bg-orange-200 text-orange-900 font-extrabold text-xs rounded-lg">+10</button>
+                            <button onclick="openEditProductModal('grill', '${prod.id}')" class="px-2 py-1 bg-slate-100 active:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-lg"><i class="fa-solid fa-pen"></i> Edit</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function renderCandleInventory() {
+            const list = document.getElementById('candle-inventory-list');
+            list.innerHTML = '';
+
+            candleProducts.forEach(prod => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center';
+                card.innerHTML = `
+                    <div class="flex-1 pr-2">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">${prod.category || 'Candle'}</span>
+                        <h4 class="font-black text-slate-900 text-sm">${prod.name}</h4>
+                        <p class="text-sm font-black text-emerald-600 mt-0.5">₱${parseFloat(prod.price).toFixed(2)}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-right">
+                            <span class="text-[10px] block font-bold text-slate-400">STOCK</span>
+                            <span class="text-base font-black ${prod.stock <= 5 ? 'text-rose-600' : 'text-slate-800'}">${prod.stock}</span>
+                        </div>
+                        <div class="flex flex-col gap-1 ml-2">
+                            <button onclick="adjustStockDirect('candle', '${prod.id}', 10)" class="px-2 py-1 bg-emerald-100 active:bg-emerald-200 text-emerald-900 font-extrabold text-xs rounded-lg">+10</button>
+                            <button onclick="openEditProductModal('candle', '${prod.id}')" class="px-2 py-1 bg-slate-100 active:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-lg"><i class="fa-solid fa-pen"></i> Edit</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function adjustStockDirect(moduleType, productId, amount) {
+            const products = moduleType === 'grill' ? grillProducts : candleProducts;
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                product.stock = Math.max(0, product.stock + amount);
+                saveDatabase();
+                renderAllViews();
+            }
+        }
+
+
+        // ================= PRODUCT MODAL =================
+        function openAddProductModal(moduleType) {
+            document.getElementById('prod-module-type').value = moduleType;
+            document.getElementById('prod-id').value = '';
+            document.getElementById('prod-name').value = '';
+            document.getElementById('prod-price').value = '';
+            document.getElementById('prod-stock').value = '';
+            document.getElementById('prod-category').value = '';
+            
+            document.getElementById('product-modal-title').textContent = `Add ${moduleType === 'grill' ? 'Grill' : 'Candle'} Item`;
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        function openEditProductModal(moduleType, productId) {
+            const products = moduleType === 'grill' ? grillProducts : candleProducts;
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+
+            document.getElementById('prod-module-type').value = moduleType;
+            document.getElementById('prod-id').value = product.id;
+            document.getElementById('prod-name').value = product.name;
+            document.getElementById('prod-price').value = product.price;
+            document.getElementById('prod-stock').value = product.stock;
+            document.getElementById('prod-category').value = product.category || '';
+
+            document.getElementById('product-modal-title').textContent = `Edit ${product.name}`;
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        function handleProductSubmit(e) {
+            e.preventDefault();
+            const moduleType = document.getElementById('prod-module-type').value;
+            const id = document.getElementById('prod-id').value;
+            const name = document.getElementById('prod-name').value.trim();
+            const price = parseFloat(document.getElementById('prod-price').value);
+            const stock = parseInt(document.getElementById('prod-stock').value, 10);
+            const category = document.getElementById('prod-category').value.trim();
+
+            const products = moduleType === 'grill' ? grillProducts : candleProducts;
+
+            if (id) {
+                const product = products.find(p => p.id === id);
+                if (product) {
+                    product.name = name;
+                    product.price = price;
+                    product.stock = stock;
+                    product.category = category;
+                }
+            } else {
+                const newId = (moduleType === 'grill' ? 'g_' : 'c_') + Date.now();
+                products.push({ id: newId, name, price, stock, category });
+            }
+
+            saveDatabase();
+            closeModal('product-modal');
+            renderAllViews();
+        }
+
+
+        // ================= CHECKOUT & RECEIPT =================
+        function openPaymentModal(moduleType) {
+            currentCheckoutModule = moduleType;
+            const cart = moduleType === 'grill' ? grillCart : candleCart;
+            if (cart.length === 0) return;
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            
+            document.getElementById('modal-due-amount').textContent = `₱${total.toFixed(2)}`;
+            document.getElementById('cash-received-input').value = '';
+            document.getElementById('modal-change-amount').textContent = `₱0.00`;
+            document.getElementById('confirm-pay-btn').disabled = true;
+
+            closeModal('cart-drawer-modal');
+            document.getElementById('payment-modal').classList.remove('hidden');
+        }
+
+        function setQuickCash(amount) {
+            document.getElementById('cash-received-input').value = amount;
+            calculateChange();
+        }
+
+        function calculateChange() {
+            const cart = currentCheckoutModule === 'grill' ? grillCart : candleCart;
+            const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const cash = parseFloat(document.getElementById('cash-received-input').value) || 0;
+
+            const change = cash - total;
+            const changeEl = document.getElementById('modal-change-amount');
+            const confirmBtn = document.getElementById('confirm-pay-btn');
+
+            if (change >= 0) {
+                changeEl.textContent = `₱${change.toFixed(2)}`;
+                changeEl.className = "text-xl font-black text-emerald-700";
+                confirmBtn.disabled = false;
+            } else {
+                changeEl.textContent = `Insufficient Cash`;
+                changeEl.className = "text-xs font-bold text-rose-600";
+                confirmBtn.disabled = true;
+            }
+        }
+
+        function processFinalCheckout() {
+            const moduleType = currentCheckoutModule;
+            const cart = moduleType === 'grill' ? grillCart : candleCart;
+            const products = moduleType === 'grill' ? grillProducts : candleProducts;
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const cash = parseFloat(document.getElementById('cash-received-input').value) || total;
+            const change = cash - total;
+
+            // Deplete Stock
+            cart.forEach(cartItem => {
+                const prod = products.find(p => p.id === cartItem.id);
+                if (prod) {
+                    prod.stock = Math.max(0, prod.stock - cartItem.qty);
+                }
+            });
+
+            // Log Transaction
+            const refId = 'TX' + Math.floor(100000 + Math.random() * 900000);
+            const timestamp = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+
+            const logEntry = {
+                refId,
+                timestamp,
+                category: moduleType.toUpperCase(),
+                items: [...cart],
+                totalAmount: total,
+                cashPaid: cash,
+                changeGiven: change
+            };
+
+            salesLogs.unshift(logEntry);
+
+            saveDatabase();
+
+            if (moduleType === 'grill') grillCart = [];
+            else candleCart = [];
+
+            renderAllViews();
+            closeModal('payment-modal');
+            showReceiptModal(logEntry);
+        }
+
+        function showReceiptModal(log) {
+            document.getElementById('rcpt-type-tag').textContent = `${log.category} COUNTER`;
+            document.getElementById('rcpt-date-time').textContent = log.timestamp;
+            document.getElementById('rcpt-ref-id').textContent = log.refId;
+
+            const listEl = document.getElementById('rcpt-items-list');
+            listEl.innerHTML = '';
+
+            log.items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center text-xs';
+                row.innerHTML = `
+                    <span>${item.qty}x ${item.name}</span>
+                    <span class="font-bold">₱${(item.price * item.qty).toFixed(2)}</span>
+                `;
+                listEl.appendChild(row);
+            });
+
+            document.getElementById('rcpt-total').textContent = `₱${log.totalAmount.toFixed(2)}`;
+            document.getElementById('rcpt-cash').textContent = `₱${log.cashPaid.toFixed(2)}`;
+            document.getElementById('rcpt-change').textContent = `₱${log.changeGiven.toFixed(2)}`;
+
+            document.getElementById('receipt-modal').classList.remove('hidden');
+        }
+
+
+        // ================= SALES ANALYTICS & LOGS =================
+        function renderSalesAnalytics() {
+            let totalOverall = 0;
+            let totalGrill = 0;
+            let totalCandle = 0;
+
+            salesLogs.forEach(log => {
+                totalOverall += log.totalAmount;
+                if (log.category === 'GRILL') totalGrill += log.totalAmount;
+                if (log.category === 'CANDLE') totalCandle += log.totalAmount;
+            });
+
+            document.getElementById('stat-total-sales').textContent = `₱${totalOverall.toFixed(2)}`;
+            document.getElementById('stat-grill-sales').textContent = `₱${totalGrill.toFixed(2)}`;
+            document.getElementById('stat-candle-sales').textContent = `₱${totalCandle.toFixed(2)}`;
+
+            renderLogsList();
+        }
+
+        function filterLogs(cat) {
+            activeLogFilter = cat;
+            document.querySelectorAll('#sec-logs button').forEach(btn => {
+                if (btn.id && btn.id.startsWith('btn-filter-')) {
+                    btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700';
+                }
+            });
+            const targetBtn = document.getElementById(`btn-filter-${cat}`);
+            if (targetBtn) targetBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white';
+            renderLogsList();
+        }
+
+        function renderLogsList() {
+            const list = document.getElementById('sales-logs-list');
+            list.innerHTML = '';
+
+            const filtered = salesLogs.filter(log => {
+                if (activeLogFilter === 'all') return true;
+                return log.category === activeLogFilter;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-slate-400 font-semibold text-xs bg-white rounded-2xl">No sales transactions recorded yet.</div>`;
+                return;
+            }
+
+            filtered.forEach(log => {
+                const itemsSummary = log.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+                const card = document.createElement('div');
+                card.className = 'bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-2';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black ${log.category === 'GRILL' ? 'bg-orange-100 text-orange-900' : 'bg-emerald-100 text-emerald-900'}">${log.category}</span>
+                            <span class="text-[11px] text-slate-400 font-bold ml-1.5">${log.timestamp}</span>
+                        </div>
+                        <span class="font-black text-slate-900 text-base">₱${log.totalAmount.toFixed(2)}</span>
+                    </div>
+                    <p class="text-xs font-medium text-slate-600 line-clamp-1">${itemsSummary}</p>
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-100 text-[11px]">
+                        <span class="font-mono text-slate-400">${log.refId}</span>
+                        <button onclick='showReceiptModal(${JSON.stringify(log)})' class="px-2.5 py-1 bg-slate-100 active:bg-slate-200 text-slate-800 font-bold rounded-lg">View Receipt</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function clearSalesLogs() {
+            if (confirm("Reset and clear all recorded sales history?")) {
+                salesLogs = [];
+                saveDatabase();
+                renderSalesAnalytics();
+            }
+        }
+
+
+        // ================= EXCEL INTEGRATION =================
+        function exportToExcel() {
+            if (typeof XLSX === 'undefined') {
+                alert("Excel generator is still initializing. Please re-try in a moment.");
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+
+            // 1. Grill Stock Sheet
+            const wsGrill = XLSX.utils.json_to_sheet(grillProducts.map(p => ({
+                "Product ID": p.id,
+                "Product Name": p.name,
+                "Price (PHP)": p.price,
+                "Daily Stock": p.stock,
+                "Category": p.category || 'Grill'
+            })));
+            XLSX.utils.book_append_sheet(wb, wsGrill, "Grill Inventory");
+
+            // 2. Candle Stock Sheet
+            const wsCandle = XLSX.utils.json_to_sheet(candleProducts.map(p => ({
+                "Product ID": p.id,
+                "Product Name": p.name,
+                "Price (PHP)": p.price,
+                "Daily Stock": p.stock,
+                "Category": p.category || 'Candle'
+            })));
+            XLSX.utils.book_append_sheet(wb, wsCandle, "Candle Inventory");
+
+            // 3. Transactions Log Sheet
+            const wsLogs = XLSX.utils.json_to_sheet(salesLogs.map(l => ({
+                "Ref ID": l.refId,
+                "Date & Time": l.timestamp,
+                "Department": l.category,
+                "Items Sold": l.items.map(i => `${i.qty}x ${i.name}`).join('; '),
+                "Total (PHP)": l.totalAmount,
+                "Cash Paid": l.cashPaid,
+                "Change": l.changeGiven
+            })));
+            XLSX.utils.book_append_sheet(wb, wsLogs, "Transaction History");
+
+            const fileName = `Sugba_Sindi_Sales_DB_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+
+                    if (wb.SheetNames.includes("Grill Inventory")) {
+                        const raw = XLSX.utils.sheet_to_json(wb.Sheets["Grill Inventory"]);
+                        if (raw.length > 0) {
+                            grillProducts = raw.map((r, i) => ({
+                                id: r["Product ID"] || 'g_imp_' + i,
+                                name: r["Product Name"] || 'Grill Item',
+                                price: parseFloat(r["Price (PHP)"]) || 0,
+                                stock: parseInt(r["Daily Stock"]) || 0,
+                                category: r["Category"] || 'Grill'
+                            }));
+                        }
+                    }
+
+                    if (wb.SheetNames.includes("Candle Inventory")) {
+                        const raw = XLSX.utils.sheet_to_json(wb.Sheets["Candle Inventory"]);
+                        if (raw.length > 0) {
+                            candleProducts = raw.map((r, i) => ({
+                                id: r["Product ID"] || 'c_imp_' + i,
+                                name: r["Product Name"] || 'Candle Item',
+                                price: parseFloat(r["Price (PHP)"]) || 0,
+                                stock: parseInt(r["Daily Stock"]) || 0,
+                                category: r["Category"] || 'Candle'
+                            }));
+                        }
+                    }
+
+                    saveDatabase();
+                    renderAllViews();
+                    alert("Database imported successfully!");
+                } catch (err) {
+                    alert("Failed to parse Excel file. Please use a file exported from this POS system.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ================= UTILS =================
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
